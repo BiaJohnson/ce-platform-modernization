@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (gitignored) and fill in values:
+#   cp terraform.tfvars.example terraform.tfvars
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+image_tag  = "v1"
+
+# Workshop ease: public URL works without a token. Internal stays IAM-locked.
+allow_unauthenticated_public = true
+
+# Reserved for future Global HTTPS LB + Cloud Armor (not deployed in this PoC).
+enable_load_balancer = false
