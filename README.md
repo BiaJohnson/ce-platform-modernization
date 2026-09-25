@@ -170,9 +170,23 @@ Scripts (`build-and-push.sh`, `gcp-day0-setup.sh`, `gcp-budget-alerts.sh`) read 
 
 ## Deploy
 
-### 1. Build and push images
+Terraform creates the Artifact Registry repository. Cloud Run needs images in that repository, so apply once for the repository, push the images, then apply again for the services.
+
+### 1. Create the repository
 
 ```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars   # once; edit project_id if needed
+terraform init
+terraform apply -target=google_artifact_registry_repository.platform
+```
+
+`-target` limits this apply to the repository and the APIs it depends on. Cloud Run is created in step 3, after the images exist.
+
+### 2. Build and push images
+
+```bash
+cd ..
 ./scripts/build-and-push.sh
 ```
 
@@ -183,23 +197,16 @@ us-central1-docker.pkg.dev/your-gcp-project-id/platform/internal-api:v1
 us-central1-docker.pkg.dev/your-gcp-project-id/platform/public-api:v1
 ```
 
-### 2. Terraform apply
+The script does not create the repository. If it is missing, create it with the step 1 command.
+
+### 3. Deploy Cloud Run
 
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # once; edit project_id if needed
-terraform init
 terraform apply
 ```
 
-If Artifact Registry already exists from the build script:
-
-```bash
-terraform import google_artifact_registry_repository.platform \
-  projects/your-gcp-project-id/locations/us-central1/repositories/platform
-```
-
-### 3. Try it
+### 4. Try it
 
 ```bash
 PUBLIC_URL="$(terraform output -raw public_url)"
@@ -242,7 +249,8 @@ gcloud run services add-iam-policy-binding internal-api \
 | Curl internal URL from laptop → 404 | Expected — internal ingress; use public `/api/orders` instead |
 | First request slow | Cold start (`min_instance_count = 0`) |
 | Public requires auth unexpectedly | `allow_unauthenticated_public = false` or `allUsers` removed |
-| Image not found on apply | Run `./scripts/build-and-push.sh` first |
+| Image not found on apply | Run `./scripts/build-and-push.sh`, then `terraform apply` again |
+| Repository already exists | An older build script created it outside Terraform. Import once: `terraform import google_artifact_registry_repository.platform projects/your-gcp-project-id/locations/us-central1/repositories/platform` |
 
 `INTERNAL_SERVICE_URL` must equal `terraform output -raw internal_uri` (no `/internal/orders` suffix — the app appends the path).
 

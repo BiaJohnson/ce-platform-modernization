@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Build container images with Cloud Build and push to Artifact Registry.
+# Terraform creates the repository. This script only checks it and pushes images.
 # No local Docker required (AWS analogy: CodeBuild → ECR).
 
 set -euo pipefail
@@ -17,15 +18,15 @@ echo "==> Registry: ${REGISTRY}"
 
 gcloud config set project "${PROJECT_ID}" >/dev/null
 
-echo "==> Ensuring Artifact Registry repo '${REPO}' exists"
+echo "==> Checking Artifact Registry repo '${REPO}' (created by Terraform)"
 if ! gcloud artifacts repositories describe "${REPO}" \
   --location="${REGION}" \
-  --project="${PROJECT_ID}" >/dev/null 2>&1; then
-  gcloud artifacts repositories create "${REPO}" \
-    --repository-format=docker \
-    --location="${REGION}" \
-    --description="Platform modernization PoC images" \
-    --project="${PROJECT_ID}"
+  --project="${PROJECT_ID}" >/dev/null; then
+  echo "" >&2
+  echo "Artifact Registry repository '${REPO}' is not available in ${REGION}." >&2
+  echo "Terraform creates it. From terraform/:" >&2
+  echo "  terraform apply -target=google_artifact_registry_repository.platform" >&2
+  exit 1
 fi
 
 echo "==> Enabling Cloud Build API (builds images in GCP)"
